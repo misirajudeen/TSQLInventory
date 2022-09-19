@@ -2,6 +2,7 @@
 -- Author: Sirajudeen Mohammed Ibrahim
 -- Description: This script pulls SQL Server Inventory, except for FCI Cluster name (which is still WIP mode)
 -- Support: This Script has been validated in SQL Server Versions 2016 and above
+-- Type: TSQL
 
 -- Code Starts Here -- 
 
