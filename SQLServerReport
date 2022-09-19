@@ -1,0 +1,97 @@
+-- Introduction
+-- Author: Sirajudeen Mohammed Ibrahim
+-- Description: This script pulls SQL Server Inventory, except for FCI Cluster name (which is still WIP mode)
+-- Support: This Script has been validated in SQL Server Versions 2016 and above
+
+-- Code Starts Here -- 
+
+-- Create Temp Table1 -- 
+ CREATE TABLE #CPUValues(
+[index]        SMALLINT,
+[description]  VARCHAR(128),
+[server_cores] SMALLINT,
+[value]        VARCHAR(5) 
+)
+ 
+ -- Create Temp Table2 -- 
+CREATE TABLE #MemoryValues(
+[index]         SMALLINT,
+[description]   VARCHAR(128),
+[server_memory] DECIMAL(10,2),
+[value]         VARCHAR(64) 
+)
+ 
+-- Create Temp Table3 -- 
+CREATE TABLE #Drives(
+[drive]   VARCHAR(1),
+[Mb Free] bigint
+)
+
+-- Populate Temp Table1 -- 
+INSERT INTO #CPUValues
+EXEC xp_msver 'ProcessorCount'
+ 
+-- Populate Temp Table2 -- 
+INSERT INTO #MemoryValues 
+EXEC xp_msver 'PhysicalMemory'
+
+-- Populate Temp Table3 -- 
+INSERT INTO #Drives 
+EXEC XP_FIXEDDRIVES
+
+-- Main Derivation -- 
+ SELECT 
+ DISTINCT 
+           CONVERT(varchar(250), SERVERPROPERTY('ComputerNamePhysicalNetBIOS')) COLLATE Latin1_General_CI_AS AS [Active_CurrentHost],
+		   CONVERT(varchar(250), ISNULL(STUFF((select ', ' + cluster_name from sys.dm_hadr_cluster FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Cluster_Name_HAG],
+		   'Not Yet Derived' AS Cluster_Name_FCI,
+
+		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + servicename FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Name],
+		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + service_account FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Account],
+		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + status_desc FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Status],
+
+           CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + NodeName FROM fn_virtualservernodes() FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_FCI],
+		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS ClusterNodes_FCI_Status,
+
+		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_name FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_HAG],
+		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [CluserNodes_HAG_Status],
+		   
+		   (SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP') ) AS FCI_ServerCount,  
+		   (SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP')) AS HAG_ServerCount,
+
+		   (SELECT dns_name from sys.availability_group_listeners) AS HAG_Listener_Name,
+		   (SELECT ip_configuration_string_from_cluster from sys.availability_group_listeners) AS HAG_Ips,
+		 CASE 
+         WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '12%'   THEN 'SQL Server 2014'
+         WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '13%'   THEN 'SQL Server 2016'     
+         WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '14%'   THEN 'SQL Server 2017'
+         WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '15%'   THEN 'SQL Server 2019' 
+         ELSE 'UNKNOWN'
+        END AS SQL_VERSION,
+    OSVersion = SUBSTRING(RIGHT(@@version, LEN(@@version)-charindex (' ON ',@@VERSION)-2),1,CHARINDEX('<',RIGHT(@@version, LEN(@@version)- 3 -charindex (' ON ',@@VERSION)))),
+	SERVERPROPERTY('ProductLevel') AS Service_Pack_Level,
+	SUBSTRING (@@version, Charindex( '(', @@version )+1,  Charindex( ')', @@version )-Charindex( '(', @@version )-1) SP_CU_Version,
+    SUBSTRING(CONVERT(VARCHAR(255),SERVERPROPERTY('EDITION')),0,CHARINDEX('Edition',CONVERT(VARCHAR(255),SERVERPROPERTY('EDITION')))) + 'Edition' AS SQL_EDITION,
+	(SELECT DISTINCT local_tcp_port FROM sys.dm_exec_connections WHERE session_id = @@SPID) AS DB_Port,
+	(SELECT ROUND(CONVERT(DECIMAL(10,2),server_memory/1024.0),1) FROM #MemoryValues) AS Server_Memory,
+	(SELECT Server_Cores FROM #CPUValues) AS Server_Cores,
+    
+	(SELECT Server_type = CASE WHEN dosi.virtual_machine_type = 1 THEN 'Virtual'  ELSE 'Physical' END FROM sys.dm_os_sys_info dosi) Server_Type,
+
+	(SELECT COUNT(*) FROM sys.dm_os_schedulers WHERE status = 'VISIBLE ONLINE') AS OnlineCpuCount,
+    (SELECT cpu_count FROM sys.dm_os_sys_info O) AS LogicalCpuCount,
+
+	(SELECT hyperthread_ratio FROM sys.dm_os_sys_info) AS Hyperthread_Ratio,
+	(SELECT cpu_count/hyperthread_ratio FROM sys.dm_os_sys_info) AS Physical_CPU_Count,
+	(SELECT sqlserver_start_time FROM sys.dm_os_sys_info) SQL_Last_Start_Time, 
+
+   	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + DriveName FROM sys.dm_io_cluster_shared_drives FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [CluserNodes_Shared_FCI_Drives],
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + Drive FROM #Drives FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [HAGNodes_Drives]
+
+
+
+DROP TABLE #CPUValues
+DROP TABLE #MemoryValues
+DROP TABLE #Drives
+
+-- Code Ends Here -- 
