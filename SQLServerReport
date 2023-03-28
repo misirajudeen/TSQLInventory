@@ -5,8 +5,10 @@
 -- For: DBA
 -- Required Permission: SYSADMIN
 -- Created Date: 2021-September
+-- Updated Date: 2023-March as covering more than 1 AG data, DB details, Application_Name etc.,
 
 -- Code Starts Here -- 
+-- Execute in Registered Server -- 
 
 -- Create Temp Table1 -- 
  CREATE TABLE #CPUValues(
@@ -42,47 +44,53 @@ EXEC xp_msver 'PhysicalMemory'
 INSERT INTO #Drives 
 EXEC XP_FIXEDDRIVES
 
--- Main Derivation -- 
- SELECT 
+-- Main Derivation_1 (updated for DB_Name)-- 
+ SELECT
  DISTINCT 
-           CONVERT(varchar(250), SERVERPROPERTY('ComputerNamePhysicalNetBIOS')) COLLATE Latin1_General_CI_AS AS [Active_CurrentHost],
-		   CONVERT(varchar(250), ISNULL(STUFF((select ', ' + cluster_name from sys.dm_hadr_cluster FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Cluster_Name_HAG],
-		   'Not Yet Derived' AS Cluster_Name_FCI,
 
-		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + servicename FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Name],
-		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + service_account FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Account],
-		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + status_desc FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Status],
+        CONVERT(varchar(250), SERVERPROPERTY('ComputerNamePhysicalNetBIOS')) COLLATE Latin1_General_CI_AS AS [Active_CurrentHost],
+	CONVERT(varchar(250), ISNULL(STUFF((select ', ' + cluster_name from sys.dm_hadr_cluster FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Cluster_Name_HAG],
+	'Not Yet Derived' AS Cluster_Name_FCI,
 
-           CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + NodeName FROM fn_virtualservernodes() FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_FCI],
-		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS ClusterNodes_FCI_Status,
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + servicename FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Name],
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + service_account FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Account],
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + status_desc FROM sys.dm_server_services FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [Service_Status],
 
-		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_name FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_HAG],
-		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [CluserNodes_HAG_Status],
+        CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + NodeName FROM fn_virtualservernodes() FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_FCI],
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS ClusterNodes_FCI_Status,
+
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_name FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_HAG],
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [CluserNodes_HAG_Status],
 		   
-		   (SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP') ) AS FCI_ServerCount,  
-		   (SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP')) AS HAG_ServerCount,
+	(SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP') ) AS FCI_ServerCount,  
+	(SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + member_state_desc FROM sys.dm_hadr_cluster_members WHERE member_type=0 FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP')) AS HAG_ServerCount,
 
-		   (SELECT dns_name from sys.availability_group_listeners) AS HAG_Listener_Name,
-		   (SELECT ip_configuration_string_from_cluster from sys.availability_group_listeners) AS HAG_Ips,
-		 CASE 
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + dns_name from sys.availability_group_listeners FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS HAG_Listener_Name,
+	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + ip_configuration_string_from_cluster from sys.availability_group_listeners FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS HAG_Listener_Ips,
+
+	 CASE 
+	 WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '11%'   THEN 'SQL Server 2012'
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '12%'   THEN 'SQL Server 2014'
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '13%'   THEN 'SQL Server 2016'     
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '14%'   THEN 'SQL Server 2017'
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '15%'   THEN 'SQL Server 2019' 
          ELSE 'UNKNOWN'
         END AS SQL_VERSION,
+	
     OSVersion = SUBSTRING(RIGHT(@@version, LEN(@@version)-charindex (' ON ',@@VERSION)-2),1,CHARINDEX('<',RIGHT(@@version, LEN(@@version)- 3 -charindex (' ON ',@@VERSION)))),
-	SERVERPROPERTY('ProductLevel') AS Service_Pack_Level,
-	SUBSTRING (@@version, Charindex( '(', @@version )+1,  Charindex( ')', @@version )-Charindex( '(', @@version )-1) SP_CU_Version,
+    SERVERPROPERTY('ProductLevel') AS SP_CU_Level,
+    SUBSTRING (@@version, Charindex( '(', @@version )+1,  Charindex( ')', @@version )-Charindex( '(', @@version )-1) SP_CU_Installed,
     SUBSTRING(CONVERT(VARCHAR(255),SERVERPROPERTY('EDITION')),0,CHARINDEX('Edition',CONVERT(VARCHAR(255),SERVERPROPERTY('EDITION')))) + 'Edition' AS SQL_EDITION,
-	(SELECT DISTINCT local_tcp_port FROM sys.dm_exec_connections WHERE session_id = @@SPID) AS DB_Port,
-	(SELECT ROUND(CONVERT(DECIMAL(10,2),server_memory/1024.0),1) FROM #MemoryValues) AS Server_Memory,
+    (SELECT DISTINCT local_tcp_port FROM sys.dm_exec_connections WHERE SESSION_ID = @@SPID) AS DB_Port,
+
+	ISNULL(STUFF((SELECT ', ' + CAST(PORT AS NVARCHAR(MAX)) from sys.availability_group_listeners FOR XML PATH('')), 1, 1, '' ), '') AS HAG_Port,
+	(SELECT ROUND(CONVERT(DECIMAL(10,2),server_memory/1024.0),1) FROM #MemoryValues) AS Server_Available_Memory,
+	(SELECT [value_in_use] FROM sys.configurations WHERE [name] = 'max server memory (MB)') AS Server_Configured_Memory,
 	(SELECT Server_Cores FROM #CPUValues) AS Server_Cores,
     
 	(SELECT Server_type = CASE WHEN dosi.virtual_machine_type = 1 THEN 'Virtual'  ELSE 'Physical' END FROM sys.dm_os_sys_info dosi) Server_Type,
-
 	(SELECT COUNT(*) FROM sys.dm_os_schedulers WHERE status = 'VISIBLE ONLINE') AS OnlineCpuCount,
-    (SELECT cpu_count FROM sys.dm_os_sys_info O) AS LogicalCpuCount,
+    	(SELECT cpu_count FROM sys.dm_os_sys_info O) AS LogicalCpuCount,
 
 	(SELECT hyperthread_ratio FROM sys.dm_os_sys_info) AS Hyperthread_Ratio,
 	(SELECT cpu_count/hyperthread_ratio FROM sys.dm_os_sys_info) AS Physical_CPU_Count,
@@ -91,10 +99,46 @@ EXEC XP_FIXEDDRIVES
    	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + DriveName FROM sys.dm_io_cluster_shared_drives FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [CluserNodes_Shared_FCI_Drives],
 	CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + Drive FROM #Drives FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [HAGNodes_Drives]
 
+INTO #MainDerivation_1
+
+-- Interim table for fetching User Databases --
+DECLARE @DB_Name TABLE(DBName SYSNAME)
+INSERT @DB_Name SELECT NAME FROM sys.databases WHERE DATABASE_ID >4 -- exclude system Databases
+
+-- Main Derivation_2 -- 
+SELECT 
+CONVERT(varchar(500), ISNULL(STUFF((SELECT ', ' + DBName FROM @DB_Name FOR XML PATH('')), 1, 1, '' ), ''))User_DB_Names,
+(SELECT COUNT(*) FROM @DB_Name) UserDB_Count,
+(select CONVERT(decimal(10,2),(SUM(size * 8.00) / 1024.00 / 1024.00)) from sys.master_files mf INNER JOIN sys.databases d ON d.database_id = mf.database_id WHERE d.database_id > 4) UserDBSize_GB,
+CASE WHEN MD1.Service_Account LIKE '%NT%' THEN 'Update_SVC-Account' ELSE 'No_Action' END Service_Account_Action,
+CASE WHEN MD1.Server_Configured_Memory =2147483647 THEN 'Update_Memory' ELSE 'No_Action' END Server_Memory_Action,
+CASE WHEN MD1.Server_Cores <> MD1.OnlineCpuCount THEN 'Update_SQL-License' ELSE 'No_Action' END Server_SQL_License_Action,
+MD1.*
+INTO #MainDerivation_2
+FROM #MainDerivation_1 MD1
+
+-- Final_Derivation -- 
+-- With hardcoded Application Name logic as deriving from Database name -- 
+-- Have to include for all the Inventory Databases -- 
+-- If not required, SELECT part for Application_Name can be commented -- 
+
+SELECT 
+(SELECT 
+CASE WHEN User_DB_Names LIKE '%DB_Name1%' THEN 'ApplicationName1' 
+CASE WHEN User_DB_Names LIKE '%DB_Name2%' THEN 'ApplicationName2' 
+CASE WHEN User_DB_Names LIKE '%DB_Name3%' THEN 'ApplicationName3' 
+ELSE NULL END 
+FROM #MainDerivation_1) Application_Name,
+MD2.* 
+FROM #MainDerivation_2 MD2
 
 
+-- DROP Temp Tables -- 
 DROP TABLE #CPUValues
 DROP TABLE #MemoryValues
 DROP TABLE #Drives
+DROP TABLE #MainDerivation_1
+DROP TABLE #MainDerivation_2
+
 
 -- Code Ends Here -- 
