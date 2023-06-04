@@ -6,6 +6,7 @@
 -- Required Permission: SYSADMIN
 -- Created Date: 2021-September
 -- Updated Date: 2023-March as covering more than 1 AG data, DB details, Application_Name etc.,
+-- Updated Date: 2023-June as including LinkedServer, CDC and Replication details
 
 -- Code Starts Here -- 
 -- Execute in Registered Server -- 
@@ -118,17 +119,28 @@ INTO #MainDerivation_2
 FROM #MainDerivation_1 MD1
 
 -- Final_Derivation -- 
--- With hardcoded Application Name logic as deriving from Database name -- 
+-- With hardcoded Application Name/DB Name logic as deriving from Database name -- 
 -- Have to include for all the Inventory Databases -- 
+-- CDC, LinkedServer and Replication dependency added -- 
 -- If not required, SELECT part for Application_Name can be commented -- 
 
 SELECT 
 (SELECT 
 CASE WHEN User_DB_Names LIKE '%DB_Name1%' THEN 'ApplicationName1' 
-CASE WHEN User_DB_Names LIKE '%DB_Name2%' THEN 'ApplicationName2' 
-CASE WHEN User_DB_Names LIKE '%DB_Name3%' THEN 'ApplicationName3' 
+	WHEN User_DB_Names LIKE '%DB_Name2%' THEN 'ApplicationName2' 
+	WHEN User_DB_Names LIKE '%DB_Name3%' THEN 'ApplicationName3' 
 ELSE NULL END 
 FROM #MainDerivation_1) Application_Name,
+(SELECT 
+CASE WHEN (User_DB_Names LIKE '%Report%' OR User_DB_Names LIKE '%PowerBI%') THEN 'True' ELSE NULL END FROM #MainDerivation_1) RS_PBI_Dependency,
+(SELECT 
+CASE WHEN User_DB_Names LIKE '%SSISDB%' THEN 'True' ELSE NULL END FROM #MainDerivation_1) SSIS_Dependency,
+(SELECT COUNT(*) FROM sys.Servers a 
+LEFT OUTER JOIN sys.linked_logins b ON b.server_id = a.server_id
+LEFT OUTER JOIN sys.server_principals c ON c.principal_id = b.local_principal_id
+WHERE is_linked=1) LinkedServer_Count,
+(SELECT COUNT(*) FROM sys.tables st WHERE is_replicated = 1)Replication_Count,
+(SELECT  COUNT(is_cdc_enabled) FROM sys.databases WHERE is_cdc_enabled=1) CDC_Count,
 MD2.* 
 FROM #MainDerivation_2 MD2
 
