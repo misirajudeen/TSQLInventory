@@ -123,18 +123,18 @@ FROM #MainDerivation_1 MD1
 
 -- Final_Derivation -- 
 -- With hardcoded Application Name/DB Name logic as deriving from Database name -- 
--- Have to include for all the Inventory Databases -- 
+-- Have to include for all the Inventory Databases to map with Application Name -- 
 -- CDC, LinkedServer, Encryption and Replication dependency added -- 
 
 SELECT 
 (SELECT 
 CASE WHEN User_DB_Names LIKE '%AG_Report%' THEN 'SQLServer_Monitor' 
-	 WHEN User_DB_Names LIKE '%Establishment%' THEN 'Revamp' 
-     WHEN User_DB_Names LIKE '%Moamalat%' THEN 'Moamalat' 
+	 WHEN User_DB_Names LIKE '%Establishment%' THEN 'Application_01' 
+     WHEN User_DB_Names LIKE '%Moamalat%' THEN 'Application_02' 
 	 WHEN User_DB_Names LIKE '%Deepsecurity%' THEN 'TrendMicro'  
 	 WHEN User_DB_Names LIKE '%WSO%' THEN 'MDM'  
 	 WHEN User_DB_Names LIKE '%ESG%' THEN 'ForcePoint'
-	 WHEN User_DB_Names LIKE '%Black%' THEN 'Gemalto'  
+	 WHEN User_DB_Names LIKE '%Black%' THEN 'Application_05'  
 ELSE NULL END 
 FROM #MainDerivation_1) Application_Name,
 (SELECT 
