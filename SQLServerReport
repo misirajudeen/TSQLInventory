@@ -129,33 +129,24 @@ FROM #MainDerivation_1 MD1
 SELECT 
 (SELECT 
 CASE WHEN User_DB_Names LIKE '%AG_Report%' THEN 'SQLServer_Monitor' 
-	 WHEN User_DB_Names LIKE '%Establishment%' THEN 'Application_01' 
-     WHEN User_DB_Names LIKE '%Moamalat%' THEN 'Application_02' 
-	 WHEN User_DB_Names LIKE '%Deepsecurity%' THEN 'TrendMicro'  
-	 WHEN User_DB_Names LIKE '%WSO%' THEN 'MDM'  
-	 WHEN User_DB_Names LIKE '%ESG%' THEN 'ForcePoint'
-	 WHEN User_DB_Names LIKE '%Black%' THEN 'Application_05'  
+	 WHEN User_DB_Names LIKE '%%' THEN 'Embed_ApplicationName'  
 ELSE NULL END 
 FROM #MainDerivation_1) Application_Name,
 (SELECT 
-CASE 
-WHEN (User_DB_Names LIKE '%Report%' OR User_DB_Names LIKE '%PowerBI%') THEN 'True' ELSE NULL END FROM #MainDerivation_1) RS_PBI_Dependency,
+CASE WHEN (User_DB_Names LIKE '%Report%' OR User_DB_Names LIKE '%PowerBI%') THEN 'True' ELSE NULL END FROM #MainDerivation_1) RS_PBI_Dependency,
 (SELECT 
-CASE 
-WHEN User_DB_Names LIKE '%SSISDB%' THEN 'True' ELSE NULL END FROM #MainDerivation_1) SSIS_Dependency,
-(SELECT COUNT(*) FROM sys.Servers a 
+CASE WHEN User_DB_Names LIKE '%SSISDB%' THEN 'True' ELSE NULL END FROM #MainDerivation_1) SSIS_Dependency,
+(SELECT 
+COUNT(*) FROM sys.Servers a 
 LEFT OUTER JOIN sys.linked_logins b ON b.server_id = a.server_id
-LEFT OUTER JOIN sys.server_principals c ON c.principal_id = b.local_principal_id
-WHERE is_linked=1) LinkedServer_Count,
-(SELECT COUNT(*) FROM sys.tables st
-WHERE is_replicated = 1)Replication_Count,
-(SELECT  COUNT(is_cdc_enabled) FROM sys.databases 
-where is_cdc_enabled=1) CDC_Count,
-(SELECT CASE WHEN COUNT(*)= 0 THEN 0 ELSE COUNT(*) END Encrypted_DBCount
-	FROM sys.databases db
-    LEFT OUTER JOIN sys.dm_database_encryption_keys dm ON db.database_id = dm.database_id
-	WHERE is_encrypted <> 0
-)Encrypted_DBCount,
+LEFT OUTER JOIN sys.server_principals c ON c.principal_id = b.local_principal_id WHERE is_linked=1) LinkedServer_Count,
+(SELECT 
+COUNT(*) FROM sys.tables st WHERE is_replicated = 1) Replication_Count,
+(SELECT  
+COUNT(is_cdc_enabled) FROM sys.databases WHERE is_cdc_enabled=1) CDC_Count,
+(SELECT 
+COUNT(*) FROM sys.databases db
+LEFT OUTER JOIN sys.dm_database_encryption_keys dm ON db.database_id = dm.database_id WHERE is_encrypted <> 0) Encrypted_DBCount,
 MD2.* 
 FROM #MainDerivation_2 MD2
 
