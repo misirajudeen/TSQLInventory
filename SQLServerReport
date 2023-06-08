@@ -133,9 +133,9 @@ CASE WHEN User_DB_Names LIKE '%AG_Report%' THEN 'SQLServer_Monitor'
 ELSE NULL END 
 FROM #MainDerivation_1) Application_Name,
 (SELECT 
-CASE WHEN (User_DB_Names LIKE '%Report%' OR User_DB_Names LIKE '%PowerBI%') THEN 'True' ELSE NULL END FROM #MainDerivation_1) RS_PBI_Dependency,
+CASE WHEN (User_DB_Names LIKE '%Report%' OR User_DB_Names LIKE '%PowerBI%') THEN 'True' ELSE 'False' END FROM #MainDerivation_1) RS_PBI_Dependency,
 (SELECT 
-CASE WHEN User_DB_Names LIKE '%SSISDB%' THEN 'True' ELSE NULL END FROM #MainDerivation_1) SSIS_Dependency,
+CASE WHEN User_DB_Names LIKE '%SSISDB%' THEN 'True' ELSE 'False' END FROM #MainDerivation_1) SSIS_Dependency,
 (SELECT 
 COUNT(*) FROM sys.Servers a 
 LEFT OUTER JOIN sys.linked_logins b ON b.server_id = a.server_id
