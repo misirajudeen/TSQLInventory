@@ -139,6 +139,7 @@ GETDATE() Report_DateTime,
 (SELECT 
 CASE WHEN User_DB_Names LIKE '%AG_Report%' THEN 'SQLServer_Monitor' 
 	 WHEN User_DB_Names LIKE '%%' THEN 'Embed_ApplicationName'  
+	 WHEN CurrentHost LIKE '%%' THEN 'Embed_ApplicationName' 
 ELSE NULL END 
 FROM #MainDerivation_1) Application_Name,
 (SELECT 
