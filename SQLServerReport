@@ -7,6 +7,7 @@
 -- Created Date: 2021-September
 -- Updated Date: 2023-March as covering more than 1 AG data, DB details, Application_Name etc.,
 -- Updated Date: 2023-June as including LinkedServer, CDC, Encryption and Replication details
+-- Updated Date: 2023-August as including Full Text Search and Availability Group details
 
 -- Code Starts Here -- 
 -- Execute in Registered Server or in Chosen Instance -- 
@@ -64,7 +65,7 @@ EXEC XP_FIXEDDRIVES
 		   CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + ip_configuration_string_from_cluster from sys.availability_group_listeners FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS HAG_Listener_Ips,
 
 		 CASE 
-		 WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '11%'   THEN 'SQL Server 2012'
+	 WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '11%'   THEN 'SQL Server 2012'
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '12%'   THEN 'SQL Server 2014'
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '13%'   THEN 'SQL Server 2016'     
          WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('PRODUCTVERSION')) like '14%'   THEN 'SQL Server 2017'
@@ -97,7 +98,7 @@ EXEC XP_FIXEDDRIVES
 	(SELECT cpu_count/hyperthread_ratio FROM sys.dm_os_sys_info) AS Physical_CPU_Count,
 	(SELECT sqlserver_start_time FROM sys.dm_os_sys_info) SQL_Last_Start_Time, 
 
-	 'InProgress' AS Cluster_Name_FCI,
+	 'Not yet Derived' AS Cluster_Name_FCI,
      CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + NodeName FROM fn_virtualservernodes() FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS [ClusterNodes_FCI],
 	 CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS AS ClusterNodes_FCI_Status,
 	 (SELECT (DATALENGTH(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS)-DATALENGTH(REPLACE(CONVERT(varchar(250), ISNULL(STUFF((SELECT ', ' + UPPER(status_description) FROM sys.dm_os_cluster_nodes  FOR XML PATH('')), 1, 1, '' ), '')) COLLATE Latin1_General_CI_AS,'UP','')))/DATALENGTH('UP') ) AS FCI_ServerCount, 
@@ -108,13 +109,13 @@ INTO #MainDerivation_1
 
 -- Interim table for User Databases --
 DECLARE @DB_Name TABLE(DBName SYSNAME, Status_Desc CHAR(25))
-INSERT @DB_Name SELECT NAME, STATE_DESC FROM sys.databases WHERE DATABASE_ID >4 -- exclude system Databases
+INSERT @DB_Name SELECT NAME, STATE_DESC FROM sys.databases WHERE DATABASE_ID >4 -- excludes system Databases
 
 -- Main Derivation_2 -- 
 -- Derivation for Custom Fields -- 
 SELECT 
-CONVERT(varchar(500), ISNULL(STUFF((SELECT ', ' + DBName FROM @DB_Name FOR XML PATH('')), 1, 1, '' ), ''))User_DB_Names,
 (SELECT COUNT(*) FROM @DB_Name) UserDB_Count,
+CONVERT(varchar(500), ISNULL(STUFF((SELECT ', ' + DBName FROM @DB_Name FOR XML PATH('')), 1, 1, '' ), ''))User_DB_Names,
 (select CONVERT(decimal(10,2),(SUM(size * 8.00) / 1024.00 / 1024.00)) from sys.master_files mf INNER JOIN sys.databases d ON d.database_id = mf.database_id WHERE d.database_id > 4) UserDBSize_GB,
 (SELECT COUNT(*) FROM @DB_Name WHERE Status_Desc <> 'ONLINE' ) InactiveUserDB_Count,
 (SELECT 
@@ -130,9 +131,8 @@ INTO #MainDerivation_2
 FROM #MainDerivation_1 MD1
 
 -- Final_Derivation -- 
--- With hardcoded Application Name/DB Name logic as deriving from Database name -- 
--- Have to include for all the Inventory Databases to map with Application Name -- 
--- CDC, LinkedServer, Encryption and Replication dependency added -- 
+-- With hardcoded Application Name/DB Name logic as deriving from Database name or Host Name -- 
+-- CDC, LinkedServer, Encryption, Replication, Full Text Ssearch, AG Routing dependency included
 
 SELECT
 GETDATE() Report_DateTime,
@@ -157,6 +157,10 @@ COUNT(is_cdc_enabled) FROM sys.databases WHERE is_cdc_enabled=1) CDC_Count,
 (SELECT 
 COUNT(*) FROM sys.databases db
 LEFT OUTER JOIN sys.dm_database_encryption_keys dm ON db.database_id = dm.database_id WHERE is_encrypted <> 0) Encrypted_DBCount,
+(SELECT 
+COUNT(*) FROM sys.databases WHERE is_fulltext_enabled = 1) FullText_DB_Count,
+(SELECT 
+CASE WHEN COUNT(*)!=0 THEN 'True' ELSE 'False' END FROM sys.availability_read_only_routing_lists) AG_Routing,
 MD2.* 
 FROM #MainDerivation_2 MD2
 
