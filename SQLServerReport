@@ -7,7 +7,7 @@
 -- Created Date: 2021-September
 -- Updated Date: 2023-March as covering more than 1 AG data, DB details, Application_Name etc.,
 -- Updated Date: 2023-June as including LinkedServer, CDC, Encryption and Replication details
--- Updated Date: 2023-August as including Full Text Search and Availability Group details
+-- Updated Date: 2023-August as including Availability Group details
 
 -- Code Starts Here -- 
 -- Execute in Registered Server or in Chosen Instance -- 
@@ -132,7 +132,7 @@ FROM #MainDerivation_1 MD1
 
 -- Final_Derivation -- 
 -- With hardcoded Application Name/DB Name logic as deriving from Database name or Host Name -- 
--- CDC, LinkedServer, Encryption, Replication, Full Text Ssearch, AG Routing dependency included
+-- CDC, LinkedServer, Encryption, Replication and AG Routing dependency included
 
 SELECT
 GETDATE() Report_DateTime,
@@ -157,8 +157,6 @@ COUNT(is_cdc_enabled) FROM sys.databases WHERE is_cdc_enabled=1) CDC_Count,
 (SELECT 
 COUNT(*) FROM sys.databases db
 LEFT OUTER JOIN sys.dm_database_encryption_keys dm ON db.database_id = dm.database_id WHERE is_encrypted <> 0) Encrypted_DBCount,
-(SELECT 
-COUNT(*) FROM sys.databases WHERE is_fulltext_enabled = 1) FullText_DB_Count,
 (SELECT 
 CASE WHEN COUNT(*)!=0 THEN 'True' ELSE 'False' END FROM sys.availability_read_only_routing_lists) AG_Routing,
 MD2.* 
