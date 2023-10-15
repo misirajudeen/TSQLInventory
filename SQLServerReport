@@ -85,6 +85,8 @@ EXEC XP_FIXEDDRIVES
 	
 	ISNULL(STUFF((SELECT ', ' + CAST(PORT AS NVARCHAR(MAX)) from sys.availability_group_listeners FOR XML PATH('')), 1, 1, '' ), '') AS HAG_Port,
 
+	ISNULL(STUFF((SELECT DISTINCT ', ' + SUBSTRING(CAST(value_data as nvarchar (max)), 1, 5) from  sys.dm_server_registry  where cast (value_data as varchar (max)) like '%-T%' FOR XML PATH('')), 1, 1, '' ), '')  AS TRACE_Flags,
+
 	(SELECT ROUND(CONVERT(DECIMAL(10,2),server_memory/1024.0),1) FROM #MemoryValues) AS Server_Available_Memory,
 	(SELECT CONVERT(varchar(80),Value_in_use)/1000 FROM sys.configurations WHERE [name] = 'max server memory (MB)') AS Server_Configured_Memory,
 	(SELECT Server_Cores FROM #CPUValues) AS Server_Cores,
